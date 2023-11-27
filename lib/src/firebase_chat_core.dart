@@ -307,7 +307,43 @@ class FirebaseChatCore {
   /// 3) Create an Index (Firestore Database -> Indexes tab) where collection ID
   /// is `rooms`, field indexed are `userIds` (type Arrays) and `updatedAt`
   /// (type Descending), query scope is `Collection`.
-  Stream<List<types.Room>> rooms({bool orderByUpdatedAt = false}) {
+  Stream<List<types.Room>> directRooms({bool orderByUpdatedAt = false}) {
+    final fu = firebaseUser;
+
+    if (fu == null) return const Stream.empty();
+
+   final collection = orderByUpdatedAt
+        ? getFirebaseFirestore()
+            .collection(config.roomsCollectionName)
+            .where('userIds', arrayContains: fu.uid)
+            .where('type', isEqualTo: 'direct')
+            .orderBy('updatedAt', descending: true)
+        : getFirebaseFirestore()
+            .collection(config.roomsCollectionName)
+            .where('userIds', arrayContains: fu.uid).
+            .where('type', isEqualTo: 'direct');
+
+    return collection.snapshots().asyncMap(
+          (query) => processRoomsQuery(
+            fu,
+            getFirebaseFirestore(),
+            query,
+            config.usersCollectionName,
+          ),
+        );
+  }
+
+    /// Returns a stream of rooms from Firebase. Only rooms where current
+  /// logged in user exist are returned. [orderByUpdatedAt] is used in case
+  /// you want to have last modified rooms on top, there are a couple
+  /// of things you will need to do though:
+  /// 1) Make sure `updatedAt` exists on all rooms
+  /// 2) Write a Cloud Function which will update `updatedAt` of the room
+  /// when the room changes or new messages come in
+  /// 3) Create an Index (Firestore Database -> Indexes tab) where collection ID
+  /// is `rooms`, field indexed are `userIds` (type Arrays) and `updatedAt`
+  /// (type Descending), query scope is `Collection`.
+  Stream<List<types.Room>> groupRooms({bool orderByUpdatedAt = false}) {
     final fu = firebaseUser;
 
     if (fu == null) return const Stream.empty();
@@ -316,10 +352,12 @@ class FirebaseChatCore {
         ? getFirebaseFirestore()
             .collection(config.roomsCollectionName)
             .where('userIds', arrayContains: fu.uid)
+            .where('type', isEqualTo: 'group')
             .orderBy('updatedAt', descending: true)
         : getFirebaseFirestore()
             .collection(config.roomsCollectionName)
-            .where('userIds', arrayContains: fu.uid);
+            .where('userIds', arrayContains: fu.uid).
+            .where('type', isEqualTo: 'group');
 
     return collection.snapshots().asyncMap(
           (query) => processRoomsQuery(
