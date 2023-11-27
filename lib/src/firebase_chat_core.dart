@@ -312,7 +312,7 @@ class FirebaseChatCore {
 
     if (fu == null) return const Stream.empty();
 
-   final collection = orderByUpdatedAt
+    final collection = orderByUpdatedAt
         ? getFirebaseFirestore()
             .collection(config.roomsCollectionName)
             .where('userIds', arrayContains: fu.uid)
@@ -333,7 +333,7 @@ class FirebaseChatCore {
         );
   }
 
-    /// Returns a stream of group rooms from Firebase. Only rooms where current
+  /// Returns a stream of group rooms from Firebase. Only rooms where current
   /// logged in user exist are returned. [orderByUpdatedAt] is used in case
   /// you want to have last modified rooms on top, there are a couple
   /// of things you will need to do though:
