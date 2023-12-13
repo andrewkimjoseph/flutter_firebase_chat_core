@@ -54,6 +54,46 @@ Future<List<types.Room>> processRoomsQuery(
   return await Future.wait(futures);
 }
 
+/// Returns a list of [types.DirectRoom] created from Firebase query.
+/// If room has 2 participants, sets correct room name and image.
+Future<List<types.DirectRoom>> processDirectRoomsQuery(
+  User firebaseUser,
+  FirebaseFirestore instance,
+  QuerySnapshot<Map<String, dynamic>> query,
+  String usersCollectionName,
+) async {
+  final futures = query.docs.map(
+    (doc) => processDirectRoomDocument(
+      doc,
+      firebaseUser,
+      instance,
+      usersCollectionName,
+    ),
+  );
+
+  return await Future.wait(futures);
+}
+
+/// Returns a list of [types.DirectRoom] created from Firebase query.
+/// If room has 2 participants, sets correct room name and image.
+Future<List<types.GroupRoom>> processGroupRoomsQuery(
+  User firebaseUser,
+  FirebaseFirestore instance,
+  QuerySnapshot<Map<String, dynamic>> query,
+  String usersCollectionName,
+) async {
+  final futures = query.docs.map(
+    (doc) => processGroupRoomDocument(
+      doc,
+      firebaseUser,
+      instance,
+      usersCollectionName,
+    ),
+  );
+
+  return await Future.wait(futures);
+}
+
 /// Returns a [types.Room] created from Firebase document.
 Future<types.Room> processRoomDocument(
   DocumentSnapshot<Map<String, dynamic>> doc,
@@ -122,4 +162,144 @@ Future<types.Room> processRoomDocument(
   }
 
   return types.Room.fromJson(data);
+}
+
+/// Returns a [types.DirectRoom] created from Firebase document.
+Future<types.DirectRoom> processDirectRoomDocument(
+  DocumentSnapshot<Map<String, dynamic>> doc,
+  User firebaseUser,
+  FirebaseFirestore instance,
+  String usersCollectionName,
+) async {
+  final data = doc.data()!;
+
+  data['createdAt'] = data['createdAt']?.millisecondsSinceEpoch;
+  data['id'] = doc.id;
+  data['updatedAt'] = data['updatedAt']?.millisecondsSinceEpoch;
+
+  var imageUrl = data['imageUrl'] as String?;
+  var name = data['name'] as String?;
+  final type = data['type'] as String;
+  final userIds = data['userIds'] as List<dynamic>;
+  final userRoles = data['userRoles'] as Map<String, dynamic>?;
+
+  final users = await Future.wait(
+    userIds.map(
+      (userId) => fetchUser(
+        instance,
+        userId as String,
+        usersCollectionName,
+        role: userRoles?[userId] as String?,
+      ),
+    ),
+  );
+
+  if (type == types.RoomType.direct.toShortString()) {
+    try {
+      final otherUser = users.firstWhere(
+        (u) => u['id'] != firebaseUser.uid,
+      );
+
+      imageUrl = otherUser['imageUrl'] as String?;
+      name = '${otherUser['firstName'] ?? ''} ${otherUser['lastName'] ?? ''}'
+          .trim();
+    } catch (e) {
+      // Do nothing if other user is not found, because he should be found.
+      // Consider falling back to some default values.
+    }
+  }
+
+  data['imageUrl'] = imageUrl;
+  data['name'] = name;
+  data['users'] = users;
+
+  if (data['lastMessages'] != null) {
+    final lastMessages = data['lastMessages'].map((lm) {
+      final author = users.firstWhere(
+        (u) => u['id'] == lm['authorId'],
+        orElse: () => {'id': lm['authorId'] as String},
+      );
+
+      lm['author'] = author;
+      lm['createdAt'] = lm['createdAt']?.millisecondsSinceEpoch;
+      lm['id'] = lm['id'] ?? '';
+      lm['updatedAt'] = lm['updatedAt']?.millisecondsSinceEpoch;
+
+      return lm;
+    }).toList();
+
+    data['lastMessages'] = lastMessages;
+  }
+
+  return types.DirectRoom.fromJson(data);
+}
+
+/// Returns a [types.GroupRoom] created from Firebase document.
+Future<types.GroupRoom> processGroupRoomDocument(
+  DocumentSnapshot<Map<String, dynamic>> doc,
+  User firebaseUser,
+  FirebaseFirestore instance,
+  String usersCollectionName,
+) async {
+  final data = doc.data()!;
+
+  data['createdAt'] = data['createdAt']?.millisecondsSinceEpoch;
+  data['id'] = doc.id;
+  data['updatedAt'] = data['updatedAt']?.millisecondsSinceEpoch;
+
+  var imageUrl = data['imageUrl'] as String?;
+  var name = data['name'] as String?;
+  final type = data['type'] as String;
+  final userIds = data['userIds'] as List<dynamic>;
+  final userRoles = data['userRoles'] as Map<String, dynamic>?;
+
+  final users = await Future.wait(
+    userIds.map(
+      (userId) => fetchUser(
+        instance,
+        userId as String,
+        usersCollectionName,
+        role: userRoles?[userId] as String?,
+      ),
+    ),
+  );
+
+  if (type == types.RoomType.direct.toShortString()) {
+    try {
+      final otherUser = users.firstWhere(
+        (u) => u['id'] != firebaseUser.uid,
+      );
+
+      imageUrl = otherUser['imageUrl'] as String?;
+      name = '${otherUser['firstName'] ?? ''} ${otherUser['lastName'] ?? ''}'
+          .trim();
+    } catch (e) {
+      // Do nothing if other user is not found, because he should be found.
+      // Consider falling back to some default values.
+    }
+  }
+
+  data['imageUrl'] = imageUrl;
+  data['name'] = name;
+  data['users'] = users;
+
+  if (data['lastMessages'] != null) {
+    final lastMessages = data['lastMessages'].map((lm) {
+      final author = users.firstWhere(
+        (u) => u['id'] == lm['authorId'],
+        orElse: () => {'id': lm['authorId'] as String},
+      );
+
+      lm['author'] = author;
+      lm['createdAt'] = lm['createdAt']?.millisecondsSinceEpoch;
+      lm['id'] = lm['id'] ?? '';
+      lm['updatedAt'] = lm['updatedAt']?.millisecondsSinceEpoch;
+
+      return lm;
+    }).toList();
+
+    data['lastMessages'] = lastMessages;
+  }
+
+  return types.GroupRoom.fromJson(data);
 }

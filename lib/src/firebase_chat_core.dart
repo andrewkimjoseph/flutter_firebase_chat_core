@@ -307,7 +307,7 @@ class FirebaseChatCore {
   /// 3) Create an Index (Firestore Database -> Indexes tab) where collection ID
   /// is `rooms`, field indexed are `userIds` (type Arrays) and `updatedAt`
   /// (type Descending), query scope is `Collection`.
-  Stream<List<types.Room>> directRooms({bool orderByUpdatedAt = false}) {
+  Stream<List<types.DirectRoom>> directRooms({bool orderByUpdatedAt = false}) {
     final fu = firebaseUser;
 
     if (fu == null) return const Stream.empty();
@@ -324,7 +324,7 @@ class FirebaseChatCore {
             .where('type', isEqualTo: 'direct');
 
     return collection.snapshots().asyncMap(
-          (query) => processRoomsQuery(
+          (query) => processDirectRoomsQuery(
             fu,
             getFirebaseFirestore(),
             query,
@@ -343,7 +343,7 @@ class FirebaseChatCore {
   /// 3) Create an Index (Firestore Database -> Indexes tab) where collection ID
   /// is `rooms`, field indexed are `userIds` (type Arrays) and `updatedAt`
   /// (type Descending), query scope is `Collection`.
-  Stream<List<types.Room>> groupRooms({bool orderByUpdatedAt = false}) {
+  Stream<List<types.GroupRoom>> groupRooms({bool orderByUpdatedAt = false}) {
     final fu = firebaseUser;
 
     if (fu == null) return const Stream.empty();
@@ -360,7 +360,7 @@ class FirebaseChatCore {
             .where('type', isEqualTo: 'group');
 
     return collection.snapshots().asyncMap(
-          (query) => processRoomsQuery(
+          (query) => processGroupRoomsQuery(
             fu,
             getFirebaseFirestore(),
             query,
